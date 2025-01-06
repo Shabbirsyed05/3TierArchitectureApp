@@ -34,3 +34,160 @@ VPC Security Group (RDS-SG) , Additional configuration ( uncheck backup ) ,
 Maintenance (uncheck enable auto minor version updgrade)
 
 
+VPC -> VPC and more -> name (demo-vpc) , IPv4 CIDR block (192.168.0.0/22) , AZ (2) , public subnet (2) ,
+private subnet (4) , NAT Gateway (In 1 AZ) , VPC endpoint (none)
+	
+Change names of subnet accordingly => private1 (app1) , priv2(app2) , priv3 (db1) , pri4 (db2)
+
+Security Group -> name (Web-ALB-SG) => 
+inbound (http , any ipv4 source)
+
+Security Group -> name (Web-SG) =>
+inbound (http , custom , Web-ALB SG)
+inbound (http , custom , 192.168.0.0/22)
+
+Security Group -> name (App-SG) =>
+type(custom tcp) , port (4000) , Source (custom)(192.168.0.0/22)
+
+Security Group -> name (Internal-ALB-SG) =>
+http , Source (custom)(192.168.0.0/22) 
+
+Security Group -> name (RDS-SG)=>
+Type (MYSQL/Aurora) , Source (custom)(192.168.0.0/22)
+
+git clone url
+
+S3 -> create bucker -> name (3tier-project111)
+upload the files.
+
+IAM -> roles => AWS Service -> Use case (EC2) -> permission(AmazonEC2RoleforSSM)
+name (demo-ec2-role)
+
+RDS => subnet groups -> name (DB-SNGP) , az(1a,1b) , subnets (db1,db2)
+RDS => Database -> Standard create , engine options (MySql) , 
+engine version (MySQL 8.0.35) , Templates (Free Tier) , default all , VPC (demo-vpc) ,
+VPC Security Group (RDS-SG) , Additional configuration ( uncheck backup ) ,
+Maintenance (uncheck enable auto minor version updgrade)
+
+ApptierInstance :
+Amazon Linux 2 , t2.micro , no key-pair , VPC , subnet(app-1) , public ip (disable), SG (app-SG)
+Advanced -> Iam Instance profile (Demo-EC2-Role)
+
+Ec2 Instance -> connect -> session Manager
+sudo su
+whoami
+cd ..
+pwd
+cd /home/ec2-user/
+pwd
+ping 8.8.8.8
+
+sudo yum install mysql -y
+
+Aws -> RDS -> Databse Endpoint (copy)
+mysql -h <DB EndPoint> -u admin -p
+
+Lets create a database. The database name i'm creating is "webappdb" (This is same name that you should give in DvConfig.js file);
+CREATE DATABASE webappdb;
+
+SHOW DATABASES;
+
+USE webappdb; ----> You will see 'Database changed'
+
+Execute the below code as a single code. Here we are creating a table with the name 'transactions'
+CREATE TABLE IF NOT EXISTS transactions(
+  id INT NOT NULL AUTO_INCREMENT, 
+  amount DECIMAL(10,2), 
+  description VARCHAR(100), 
+  PRIMARY KEY(id)
+);
+
+To verify whether table got created or not;
+SHOW TABLES;
+
+Lets insert some info into the table
+INSERT INTO transactions (amount, description) VALUES ('400', 'groceries');
+
+To verify whether the entry is really created or not
+SELECT * FROM transactions;
+You will see the info you have written
+
+To come out of the DB;
+exit (You will see 'ec2-user' at the end of command line and at the beginning of command line you will see 'root')
+
+Update Application Configuration to with DB information (on local (git cloned data))
+Update the **application-code/app-tier/DbConfig.js** file with your database credentials.
+
+Upload the DbConfig.js in the s3 bucket
+
+Install and Configure Node.js and PM2
+curl -o- https://raw.githubusercontent.com/avizway1/aws_3tier_architecture/main/install.sh | bash
+source ~/.bashrc
+
+nvm install 16
+nvm use 16 (You will see 'Now using node v16.20.2)
+
+NVM means Node Version Manager
+ 
+To run node as a service, we will install pm2
+npm install -g pm2 (You will see 'found 0 vulnerabilities)
+
+pwd
+
+Download application code from S3 and start the application
+cd ~/ 
+sudo aws s3 cp s3://<S3BucketName>/application-code/app-tier/ app-tier --recursive
+
+Ex: sudo aws s3 cp s3://demo-3tier-project/application-code/app-tier/ app-tier --recursive
+
+ls ---> You will see 'app-tier' folder
+
+cd app-tier/ 
+npm install
+ls ----> You will see 'index.js' file. We have to start that.
+
+pm2 start index.js (You will see the status as 'online')
+
+To verify;
+pm2 list (or) pm2 status
+pm2 logs (You will not see anything in red colour, everything in white colour you should see)
+
+At the end you will see something like; http://localhost:4000
+
+pm2 startup
+pm2 save ---> To save the configuration	
+
+Verify that the application is running by executing
+curl http://localhost:4000/health
+It should return: This is the health check.
+
+With this we have completed the application configuration.
+
+=====
+
+AWS -> EC2 -> Target Groups -> Create Target Group  =>
+Choose targer type (Instances) , Target Group Name (App-Internal-TG) , Port (http , 4000)
+IPV4 , vpc (demo-vpc) , Health Checks => protocol (http) , Health check path (/health)
+Available Instances (select apptierinstance) , port (4000) Include as pending below -> Create Target Group
+
+AWS -> EC2 -> Load Balancer -> Application LoadBalancer =>
+name (App-Internal_LB) , scheme (Internal) , ipv4 , vpc (demo-vpc) , AZ (tick both subnet (app1 , app2))
+Security Group (Internal-ALB-SG) , Listerners and Routing =>
+Protocol (http) , port (80) , target group (App-Internal-TG)
+
+AWS -> EC2 -> Load Balancer ->  DNS name (copy)
+
+3tier/application-code/nginx.conf -> Replace the internal_load_balancer with DNS Name in the file (last line)
+save the file
+
+upload the modified nginx.conf in the s3 bucket
+
+AWS -> EC2 -> name (Web-Tier-Instance) => Amazon Linux 2 AMI , t2.micro , no key_pair
+vpc (demo-vpc) , subnet ()
+
+
+
+
+
+
+
