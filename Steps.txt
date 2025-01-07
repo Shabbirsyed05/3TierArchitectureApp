@@ -272,6 +272,35 @@ Template name (App-Tier-LT) , Version (v1) , tick (provide guidance) , My AMI (A
 Instance type (t2.micro) , key_pair (no key pair) , subnet (dont include subnet group) , 
 SG (App-SG) , Advanced details => IAM Instance Profile (Demo-EC2-Role)
 
+AWS -> EC2 -> Auto Scaling Groups -> Create Auto Scaling Groups -=>
+name (App-Tier-ASG) , Launch Template (App-Tier-LT) ,
+Network => VPC (demo-VPC) , az (app1 , app2) , Availability zone distribution (Balanced best effort) ,
+Load Balancer -> Attach to existing Load Balancer , Choose from your load balancer target groups , Target group(App-Internal-TG) , Desired Capacity (2) , Min Desired Capacity (2) , Max Desired Capacity (2) , Tage name, web-tier-vms
+(now 2 instances will bee created)
+
+For high level security
+RDS-SG => type (MySQL/Aurora) , source (custom) (App-SG) (remove old inbound rules of VPC)
+learnwithshabbir.com (chrome) (able to access it)
+
+App-SG => type (Custom TCP) , Port (4000) , Source (custom) (Internal-ALB-SG) (remove old inbound rules of VPC)
+learnwithshabbir.com (chrome) (able to access it)
+
+Web-SG  => type (Custom TCP) , Port (4000) , Source (custom) (web-ALB-SG) (remove old inbound rules of VPC)
+learnwithshabbir.com (chrome) (able to access it)
+
+Delete everything once its done
+First delete ASG
+Next delete both LBs
+Next delete both TGs
+Next delete both AMIs
+Next delete both Snapshots of AMIs
+Next delete DB
+Next delete S3 Bucket
+Next delete Certificate
+Next delete Route 53 record
+Next delete NAT GW
+Next delete Elastic IP. This came because of NATGW
+Next delete VPC
 
 
 
