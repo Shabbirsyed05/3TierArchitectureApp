@@ -183,7 +183,96 @@ save the file
 upload the modified nginx.conf in the s3 bucket
 
 AWS -> EC2 -> name (Web-Tier-Instance) => Amazon Linux 2 AMI , t2.micro , no key_pair
-vpc (demo-vpc) , subnet ()
+vpc (demo-vpc) , subnet (public1/2 subnet) , Public IP (enable) , SG (Web-SG) , Advanced =>
+Iam instance profile (Demo-EC2-Role) => connect using session manager.
+
+sudo -su ec2-user
+whoami
+
+cd /home/ec2-user
+
+curl -o- https://raw.githubusercontent.com/avizway1/aws_3tier_architecture/main/install.sh | bash
+source ~/.bashrc
+nvm install 16
+nvm use 16
+
+aws s3 cp s3://<S3 Bucker Name>/application-code/web-tier/ web-tier --recursive
+Ex: aws s3 cp s3://demo-3tier-project/application-code/web-tier/ web-tier --recursive
+
+ls ----> You will see 'web-tier'
+
+cd web-tier
+npm install
+npm run build
+
+sudo amazon-linux-extras install nginx1 -y
+
+Update Nginx configuration:
+cd /etc/nginx (Your are in nginx path)
+ls ----> You will see 'nginx.conf' file
+
+sudo rm nginx.conf
+
+sudo aws s3 cp s3://<S3 Bucker Name>/application-code/nginx.conf .
+Ex: sudo aws s3 cp s3://demo-3tier-project/application-code/nginx.conf .
+
+sudo service nginx restart
+
+chmod -R 755 /home/ec2-user
+
+sudo chkconfig nginx on
+
+To check the output of the App, we can check using the Web-Tier-Instance public IP. But before checking lets open port no 80 with http, Anywhere IPv4, 0.0.0.0/0 ---> Save rules ----> Now paste the pubic ip of Web-Tier-Instance in new tab of browser ----> You will see the app ----> Enter the data in the app
+Instance -> security -> Http , any where from ipv4 , 0.0.0.0/0
+
+Ip(chrome) (u will be seeing the application)
+click on 3 line -> Add Data -> add it
+
+EC2 -> Target Groups -> Create Target -> Instances -> name (External-web-TG) , port (http , 80) , vpc(demo-vpc)
+protocolversion (http1) , Health checks =>
+health check protocol (http) , Health check path (/) , Register Targets => select Web-Tier-Instance , 80 (Include as pending below)
+
+EC2 -> Load Balancers -> Application Load Balancer -> name (External-Web-ALB) , Scheme (Internet-facing) ,
+Ip address type (IPV4) , VPC (demo-vpc) , AZ (1a (public1), 1b (public2)) , SG (Web-ALB-SG) , 
+Listeners and routing => protocol (http) , port (80) , Target Group (External-Web-TG) => create
+
+Copy the DNS name from the External-Web-ALB(Load Balancer)
+IP(chrome) (it wont be accessible) (we cant give DNS name and public ip to end users)
+
+
+AWS -> Route 53 -> Register a domain (if u have domain then use transfer a domain) =>
+search for domain (learnwithshabbir.com) -> untick (autorenew)
+
+AWS -> Route 53 -> Hosted Zones (learnwithshabbir.com) -> Create record =>
+record type (A) , (enable) alias , route traffic to => endpoint(Alias to Application and Classic Load Balancer) ,
+Region (mumbai) , Load Balancer (External-Web-ALB) , Routing (simple)
+
+AWS -> Certificate Manager -> Request a Certificate -> Certificate type (Request Public Certificate) -> next =>
+Fully qualified domain name (FQDN) (learnwithshabbir.com) , validation method (DNS validation) , key algorith (RSA 2048)
+
+AWS -> Certificate Manager -> Domains -> Create records in route 53 => select learnwithshabbir.com -> create
+
+AWS -> EC2 -> Load balancers -> External-Web-ALB -> lisnters and rules -> Add Listerner => 
+Listerner configuration  -> protocol (https), port (443) , routing actions (forward to target groups) , 
+target group (External-Web-TG) ,
+certificate source (From ACM) , Certificate (learnwithshabbir.com) -> ADD
+
+SG -> Web-ALB-SG -> add port 443
+
+learnwithshabbir.com(chrome) (site will be opened)
+
+AWS -> EC2 -> App-tier-instance -> Actions -> Image and templates -> Create Image =>
+Image Name (App-Tier-AMI) , Untick (reboot instance) -> create image
+
+AWS -> EC2 -> Web-tier-instance -> Actions -> Image and templates -> Create Image =>
+Image Name (Web-Tier-AMI) , Untick (reboot instance) -> create image
+ 
+AWS -> EC2 -> launch template =>
+Template name (App-Tier-LT) , Version (v1) , tick (provide guidance) , My AMI (App-Tier-AMI) , 
+Instance type (t2.micro) , key_pair (no key pair) , subnet (dont include subnet group) , 
+SG (App-SG) , Advanced details => IAM Instance Profile (Demo-EC2-Role)
+
+
 
 
 
