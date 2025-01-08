@@ -33,42 +33,6 @@ engine version (MySQL 8.0.35) , Templates (Free Tier) , default all , VPC (demo-
 VPC Security Group (RDS-SG) , Additional configuration ( uncheck backup ) ,
 Maintenance (uncheck enable auto minor version updgrade)
 
-
-VPC -> VPC and more -> name (demo-vpc) , IPv4 CIDR block (192.168.0.0/22) , AZ (2) , public subnet (2) ,
-private subnet (4) , NAT Gateway (In 1 AZ) , VPC endpoint (none)
-	
-Change names of subnet accordingly => private1 (app1) , priv2(app2) , priv3 (db1) , pri4 (db2)
-
-Security Group -> name (Web-ALB-SG) => 
-inbound (http , any ipv4 source)
-
-Security Group -> name (Web-SG) =>
-inbound (http , custom , Web-ALB SG)
-inbound (http , custom , 192.168.0.0/22)
-
-Security Group -> name (App-SG) =>
-type(custom tcp) , port (4000) , Source (custom)(192.168.0.0/22)
-
-Security Group -> name (Internal-ALB-SG) =>
-http , Source (custom)(192.168.0.0/22) 
-
-Security Group -> name (RDS-SG)=>
-Type (MYSQL/Aurora) , Source (custom)(192.168.0.0/22)
-
-git clone url
-
-S3 -> create bucker -> name (3tier-project111)
-upload the files.
-
-IAM -> roles => AWS Service -> Use case (EC2) -> permission(AmazonEC2RoleforSSM)
-name (demo-ec2-role)
-
-RDS => subnet groups -> name (DB-SNGP) , az(1a,1b) , subnets (db1,db2)
-RDS => Database -> Standard create , engine options (MySql) , 
-engine version (MySQL 8.0.35) , Templates (Free Tier) , default all , VPC (demo-vpc) ,
-VPC Security Group (RDS-SG) , Additional configuration ( uncheck backup ) ,
-Maintenance (uncheck enable auto minor version updgrade)
-
 ApptierInstance :
 Amazon Linux 2 , t2.micro , no key-pair , VPC , subnet(app-1) , public ip (disable), SG (app-SG)
 Advanced -> Iam Instance profile (Demo-EC2-Role)
